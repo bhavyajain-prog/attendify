@@ -214,15 +214,17 @@ function ThresholdSelector({
 }) {
   const presets = [60, 65, 70, 75, 80, 85];
   return (
-    <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5">
-      <SlidersHorizontal size={14} className="text-zinc-500" />
-      <span className="text-xs text-zinc-400 hidden sm:inline">Threshold:</span>
+    <div className="flex items-center gap-2 sm:gap-3 bg-zinc-900 border border-zinc-800 rounded-xl px-3 sm:px-4 py-2.5 w-full sm:w-auto overflow-x-auto">
+      <SlidersHorizontal size={14} className="text-zinc-500 shrink-0" />
+      <span className="text-xs text-zinc-400 hidden sm:inline shrink-0">
+        Threshold:
+      </span>
       <div className="flex gap-1">
         {presets.map((p) => (
           <button
             key={p}
             onClick={() => onChange(p)}
-            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer shrink-0 ${
               value === p
                 ? "bg-indigo-600 text-white"
                 : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800"
@@ -424,7 +426,7 @@ function IndividualBreakdown({
 
       {/* Date-wise timeline */}
       <section>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
           <h2 className="text-lg font-semibold text-zinc-300 flex items-center gap-2">
             <Calendar size={20} /> Date-wise Timeline
           </h2>
@@ -723,11 +725,11 @@ function OverviewView({
 
       {/* Subject List */}
       <section>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
           <h2 className="text-lg font-semibold text-zinc-300">
             Subject Details
           </h2>
-          <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+          <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden w-full sm:w-auto">
             {(
               [
                 ["all", "All", subjects.length],
@@ -738,7 +740,7 @@ function OverviewView({
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
-                className={`px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                className={`flex-1 sm:flex-none px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
                   activeTab === key
                     ? "bg-indigo-600 text-white"
                     : "text-zinc-400 hover:text-white"
@@ -828,19 +830,19 @@ export default function Dashboard({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold bg-linear-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+              <h1 className="text-xl sm:text-2xl font-bold bg-linear-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
                 Attendify
               </h1>
-              <p className="text-zinc-500 text-sm">
+              <p className="text-zinc-500 text-xs sm:text-sm">
                 Attendance Analytics Dashboard
               </p>
             </div>
             <button
               onClick={onReset}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm transition-colors cursor-pointer"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm transition-colors cursor-pointer"
             >
               <Trash2 size={14} />
-              New Analysis
+              <span className="hidden sm:inline">New Analysis</span>
             </button>
           </div>
 
@@ -848,7 +850,7 @@ export default function Dashboard({
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mt-4">
             {/* View tabs (only show if detailed data) */}
             {hasDetailedData ? (
-              <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+              <div className="flex bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden w-full sm:w-auto">
                 <button
                   onClick={() => setView("overview")}
                   className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
