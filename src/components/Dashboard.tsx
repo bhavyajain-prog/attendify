@@ -530,19 +530,21 @@ function OverviewView({
     worstSubject,
   } = analysis;
 
-  const displaySubjects =
-    activeTab === "lectures"
-      ? lectures
-      : activeTab === "labs"
-        ? labs
-        : subjects;
+  const displaySubjects = (
+    activeTab === "lectures" ? lectures : activeTab === "labs" ? labs : subjects
+  )
+    .slice()
+    .sort((a, b) => a.percentage - b.percentage);
 
-  const barData = subjects.map((s) => ({
-    name: s.code,
-    fullName: s.name,
-    percentage: s.percentage,
-    fill: getBarColor(s.percentage, threshold),
-  }));
+  const barData = subjects
+    .slice()
+    .sort((a, b) => a.percentage - b.percentage)
+    .map((s) => ({
+      name: s.code,
+      fullName: s.name,
+      percentage: s.percentage,
+      fill: getBarColor(s.percentage, threshold),
+    }));
 
   const pieData = [
     { name: "Present", value: overall.totalPresent, color: COLORS.green },

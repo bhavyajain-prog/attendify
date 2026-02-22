@@ -197,7 +197,6 @@ function parseDetailed(lines: string[]): {
     // Makeup classes only count if attended (P/OD).
     // If absent in a makeup class, it doesn't affect attendance at all.
     if (r.isMakeup && r.status === "A") {
-      entry.mk += w;
       continue;
     }
 
