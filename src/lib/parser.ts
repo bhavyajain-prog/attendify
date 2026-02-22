@@ -192,18 +192,19 @@ function parseDetailed(lines: string[]): {
       });
     }
     const entry = map.get(key)!;
+    const w = r.hours; // weight by hours so labs match hour-based totals
 
     // Makeup classes only count if attended (P/OD).
     // If absent in a makeup class, it doesn't affect attendance at all.
     if (r.isMakeup && r.status === "A") {
-      entry.mk++;
+      entry.mk += w;
       continue;
     }
 
-    if (r.status === "P") entry.p++;
-    else if (r.status === "A") entry.a++;
-    else if (r.status === "OD") entry.od++;
-    if (r.isMakeup) entry.mk++;
+    if (r.status === "P") entry.p += w;
+    else if (r.status === "A") entry.a += w;
+    else if (r.status === "OD") entry.od += w;
+    if (r.isMakeup) entry.mk += w;
   }
 
   const subjects: SubjectAttendance[] = [];
