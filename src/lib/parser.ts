@@ -320,3 +320,28 @@ export function classesCanMiss(
   const canMiss = (attended * 100 - target * total) / target;
   return canMiss > 0 ? Math.floor(canMiss) : 0;
 }
+
+/**
+ * For the total aggregate: hours needed to attend to reach the target,
+ * or hours that can be skipped while staying at/above the target.
+ * Ignores lab constraints — treats everything as uniform hours.
+ * Returns { type: "attend" | "skip", hours: number }.
+ */
+export function aggregateHoursToThreshold(
+  overall: AttendanceAnalysis["overall"],
+  target: number = 75,
+): { type: "attend" | "skip"; hours: number } {
+  const attended = overall.totalPresent + overall.totalOD + overall.totalMakeup;
+  const total = overall.totalClasses;
+  const pct = total > 0 ? (attended / total) * 100 : 0;
+
+  if (pct >= target) {
+    // hours that can be skipped
+    const canSkip = (attended * 100 - target * total) / target;
+    return { type: "skip", hours: canSkip > 0 ? Math.floor(canSkip) : 0 };
+  }
+
+  // hours that must be attended
+  const needed = ((target / 100) * total - attended) / (1 - target / 100);
+  return { type: "attend", hours: needed > 0 ? Math.ceil(needed) : 0 };
+}

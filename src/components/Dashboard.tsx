@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import {
   classesNeeded,
   classesCanMiss,
+  aggregateHoursToThreshold,
   analyzeAttendance,
   type AttendanceAnalysis,
   type SubjectAttendance,
@@ -614,6 +615,47 @@ function OverviewView({
             color="bg-purple-500/20 text-purple-400"
           />
         </div>
+
+        {/* Aggregate hours to threshold */}
+        {(() => {
+          const agg = aggregateHoursToThreshold(overall, threshold);
+          if (agg.hours === 0) return null;
+          const isSkip = agg.type === "skip";
+          return (
+            <div
+              className={`mt-4 flex items-center gap-3 rounded-xl border px-5 py-3 ${
+                isSkip
+                  ? "border-emerald-500/20 bg-emerald-500/5"
+                  : "border-red-500/20 bg-red-500/5"
+              }`}
+            >
+              {isSkip ? (
+                <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+              ) : (
+                <AlertTriangle size={18} className="text-red-400 shrink-0" />
+              )}
+              <span className="text-sm text-zinc-300">
+                {isSkip ? (
+                  <>
+                    You can skip up to{" "}
+                    <strong className="text-emerald-400">
+                      {agg.hours} hour{agg.hours !== 1 ? "s" : ""}
+                    </strong>{" "}
+                    overall and still stay at or above {threshold}%
+                  </>
+                ) : (
+                  <>
+                    You need to attend the next{" "}
+                    <strong className="text-red-400">
+                      {agg.hours} hour{agg.hours !== 1 ? "s" : ""}
+                    </strong>{" "}
+                    of classes to bring your overall attendance to {threshold}%
+                  </>
+                )}
+              </span>
+            </div>
+          );
+        })()}
       </section>
 
       {/* Best / Worst */}
