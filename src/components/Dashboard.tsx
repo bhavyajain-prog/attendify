@@ -35,10 +35,12 @@ import {
   Trash2,
   ArrowRight,
   Calendar,
+  CalendarDays,
   List,
   SlidersHorizontal,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Clock,
   User,
 } from "lucide-react";
@@ -509,6 +511,360 @@ function IndividualBreakdown({
   );
 }
 
+// ─── Calendar View ─────────────────────────────────────────
+
+function extractDateStr(dateField: string): string {
+  const m = dateField.match(/(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : dateField;
+}
+
+function CalendarView({
+  records,
+  threshold,
+}: {
+  records: ClassRecord[];
+  threshold: number;
+}) {
+  const [filterSubject, setFilterSubject] = useState<string>("all");
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // Determine initial month from latest record
+  const initialMonth = useMemo(() => {
+    if (records.length === 0) return new Date();
+    const dates = records.map((r) => extractDateStr(r.date)).sort();
+    const latest = dates[dates.length - 1];
+    const [y, m] = latest.split("-").map(Number);
+    return new Date(y, m - 1, 1);
+  }, [records]);
+
+  const [viewMonth, setViewMonth] = useState(initialMonth);
+
+  const subjectCodes = useMemo(
+    () => [...new Set(records.map((r) => r.code))].sort(),
+    [records],
+  );
+
+  const filtered = useMemo(
+    () =>
+      filterSubject === "all"
+        ? records
+        : records.filter((r) => r.code === filterSubject),
+    [records, filterSubject],
+  );
+
+  // Map: "YYYY-MM-DD" -> ClassRecord[]
+  const byDate = useMemo(() => {
+    const map = new Map<string, ClassRecord[]>();
+    for (const r of filtered) {
+      const key = extractDateStr(r.date);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(r);
+    }
+    return map;
+  }, [filtered]);
+
+  // Build calendar grid for viewMonth
+  const year = viewMonth.getFullYear();
+  const month = viewMonth.getMonth(); // 0-indexed
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const daysInMonth = lastDay.getDate();
+  // Monday = 0 ... Sunday = 6
+  const startDow = (firstDay.getDay() + 6) % 7;
+
+  const cells: { day: number; inMonth: boolean; dateStr: string }[] = [];
+  // Leading blanks (previous month)
+  const prevMonthLast = new Date(year, month, 0).getDate();
+  for (let i = startDow - 1; i >= 0; i--) {
+    const d = prevMonthLast - i;
+    const pm = month === 0 ? 12 : month;
+    const py = month === 0 ? year - 1 : year;
+    cells.push({
+      day: d,
+      inMonth: false,
+      dateStr: `${py}-${String(pm).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+    });
+  }
+  // Current month days
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({
+      day: d,
+      inMonth: true,
+      dateStr: `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+    });
+  }
+  // Trailing blanks to fill last row
+  const trailing = (7 - (cells.length % 7)) % 7;
+  for (let d = 1; d <= trailing; d++) {
+    const nm = month + 2 > 12 ? 1 : month + 2;
+    const ny = month + 2 > 12 ? year + 1 : year;
+    cells.push({
+      day: d,
+      inMonth: false,
+      dateStr: `${ny}-${String(nm).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+    });
+  }
+
+  const weeks: typeof cells[] = [];
+  for (let i = 0; i < cells.length; i += 7) {
+    weeks.push(cells.slice(i, i + 7));
+  }
+
+  const monthNames = [
+    "January","February","March","April","May","June",
+    "July","August","September","October","November","December",
+  ];
+
+  const todayStr = (() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+  })();
+
+  const goToPrev = () => setViewMonth(new Date(year, month - 1, 1));
+  const goToNext = () => setViewMonth(new Date(year, month + 1, 1));
+
+  // Detail panel data
+  const selectedRecords = useMemo(() => {
+    if (!selectedDate) return [];
+    return (byDate.get(selectedDate) || []).sort((a, b) =>
+      a.time.localeCompare(b.time),
+    );
+  }, [selectedDate, byDate]);
+
+  // Compute dot colors per date
+  function getDaySummary(dateStr: string) {
+    const recs = byDate.get(dateStr);
+    if (!recs || recs.length === 0) return null;
+    const total = recs.length;
+    const pCount = recs.filter((r) => r.status === "P" || r.status === "OD").length;
+    const aCount = recs.filter((r) => r.status === "A").length;
+    const pct = (pCount / total) * 100;
+    return { total, pCount, aCount, pct };
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Controls row */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h2 className="text-lg font-semibold text-zinc-300 flex items-center gap-2">
+          <CalendarDays size={20} /> Calendar View
+        </h2>
+        <select
+          value={filterSubject}
+          onChange={(e) => setFilterSubject(e.target.value)}
+          className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm text-zinc-300 cursor-pointer focus:outline-none focus:border-indigo-500/50"
+        >
+          <option value="all">All Subjects</option>
+          {subjectCodes.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Calendar */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+        {/* Month header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+          <button
+            onClick={goToPrev}
+            className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <h3 className="text-lg font-semibold text-white">
+            {monthNames[month]} {year}
+          </h3>
+          <button
+            onClick={goToNext}
+            className="p-2 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+
+        {/* Day-of-week headers */}
+        <div className="grid grid-cols-7 text-center text-xs font-medium text-zinc-500 border-b border-zinc-800">
+          {["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((d) => (
+            <div key={d} className="py-3">
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Weeks */}
+        <div>
+          {weeks.map((week, wi) => (
+            <div key={wi} className="grid grid-cols-7 border-b border-zinc-800/50 last:border-b-0">
+              {week.map((cell, ci) => {
+                const summary = getDaySummary(cell.dateStr);
+                const isSelected = selectedDate === cell.dateStr;
+                const isToday = cell.dateStr === todayStr;
+                const hasClasses = !!summary;
+
+                let dotColor = "";
+                if (summary) {
+                  if (summary.pct >= 100) dotColor = "bg-emerald-400";
+                  else if (summary.pct >= threshold) dotColor = "bg-emerald-400";
+                  else if (summary.pct > 0) dotColor = "bg-yellow-400";
+                  else dotColor = "bg-red-400";
+                }
+
+                return (
+                  <button
+                    key={ci}
+                    onClick={() => {
+                      if (cell.inMonth) setSelectedDate(cell.dateStr);
+                    }}
+                    className={`relative flex flex-col items-center justify-start py-2 sm:py-3 min-h-[56px] sm:min-h-[72px] transition-all cursor-pointer
+                      ${!cell.inMonth ? "opacity-25 cursor-default" : "hover:bg-zinc-800/60"}
+                      ${isSelected ? "bg-indigo-500/15 ring-1 ring-inset ring-indigo-500/40" : ""}
+                      ${isToday && cell.inMonth && !isSelected ? "ring-1 ring-inset ring-zinc-600" : ""}
+                    `}
+                  >
+                    <span
+                      className={`text-sm font-medium ${
+                        isToday && cell.inMonth
+                          ? "text-indigo-400 font-bold"
+                          : cell.inMonth
+                            ? "text-zinc-300"
+                            : "text-zinc-600"
+                      }`}
+                    >
+                      {cell.day}
+                    </span>
+
+                    {/* Attendance dots */}
+                    {hasClasses && cell.inMonth && (
+                      <div className="flex items-center gap-0.5 mt-1.5">
+                        {summary!.total <= 5 ? (
+                          // Individual dots
+                          byDate.get(cell.dateStr)!.map((r, ri) => (
+                            <span
+                              key={ri}
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                r.status === "P" || r.status === "OD"
+                                  ? "bg-emerald-400"
+                                  : "bg-red-400"
+                              }`}
+                            />
+                          ))
+                        ) : (
+                          // Aggregated indicator
+                          <>
+                            <span className={`w-2 h-2 rounded-full ${dotColor}`} />
+                            <span className="text-[10px] text-zinc-500 ml-0.5">
+                              {summary!.total}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-5 text-xs text-zinc-500 px-1">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-400" /> Present / OD
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-red-400" /> Absent
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-yellow-400" /> Mixed
+        </div>
+      </div>
+
+      {/* Selected Day Detail Panel */}
+      {selectedDate && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
+            <h3 className="text-base font-semibold text-white flex items-center gap-2">
+              <Calendar size={16} className="text-indigo-400" />
+              {(() => {
+                const [y, m, d] = selectedDate.split("-").map(Number);
+                const dt = new Date(y, m - 1, d);
+                const dayNames = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+                return `${dayNames[dt.getDay()]}, ${monthNames[m - 1]} ${d}`;
+              })()}
+            </h3>
+            <span className="text-sm text-zinc-500">
+              Total Classes: <span className="text-zinc-300 font-semibold">{selectedRecords.length}</span>
+            </span>
+          </div>
+
+          {selectedRecords.length === 0 ? (
+            <div className="px-6 py-10 text-center text-zinc-500 text-sm">
+              No classes on this day.
+            </div>
+          ) : (
+            <div className="divide-y divide-zinc-800/50">
+              {selectedRecords.map((r, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 px-6 py-4 hover:bg-zinc-800/30 transition-colors"
+                >
+                  <span
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
+                      r.status === "P"
+                        ? "bg-emerald-500/20 text-emerald-400"
+                        : r.status === "OD"
+                          ? "bg-blue-500/20 text-blue-400"
+                          : "bg-red-500/20 text-red-400"
+                    }`}
+                  >
+                    {r.status}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white font-medium truncate">
+                      {r.subject}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-zinc-500 mt-0.5 flex-wrap">
+                      <span className="font-mono">{r.code}</span>
+                      <span>·</span>
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          r.type === "Lab"
+                            ? "bg-purple-500/20 text-purple-300"
+                            : "bg-blue-500/20 text-blue-300"
+                        }`}
+                      >
+                        {r.type}
+                      </span>
+                      <span>·</span>
+                      <span className="flex items-center gap-1">
+                        <Clock size={10} /> {r.time}
+                      </span>
+                      <span>·</span>
+                      <span>{r.hours}h</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-zinc-500 hidden sm:flex items-center gap-1 shrink-0">
+                    <User size={12} />
+                    <span className="truncate max-w-32">{r.faculty}</span>
+                  </div>
+                  {r.isMakeup && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 font-medium shrink-0">
+                      MAKEUP
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Overview View ─────────────────────────────────────────
 
 function OverviewView({
@@ -856,7 +1212,7 @@ export default function Dashboard({
   onReset: () => void;
 }) {
   const [threshold, setThreshold] = useState(75);
-  const [view, setView] = useState<"overview" | "individual">("overview");
+  const [view, setView] = useState<"overview" | "individual" | "calendar">("overview");
 
   const analysis = useMemo(
     () => analyzeAttendance(parseResult, threshold),
@@ -915,6 +1271,17 @@ export default function Dashboard({
                   <List size={14} />
                   Class-by-Class
                 </button>
+                <button
+                  onClick={() => setView("calendar")}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                    view === "calendar"
+                      ? "bg-indigo-600 text-white"
+                      : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  <CalendarDays size={14} />
+                  Calendar
+                </button>
               </div>
             ) : (
               <div />
@@ -928,8 +1295,13 @@ export default function Dashboard({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {view === "overview" ? (
           <OverviewView analysis={analysis} threshold={threshold} />
-        ) : (
+        ) : view === "individual" ? (
           <IndividualBreakdown
+            records={analysis.records}
+            threshold={threshold}
+          />
+        ) : (
+          <CalendarView
             records={analysis.records}
             threshold={threshold}
           />
